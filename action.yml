@@ -16,7 +16,7 @@ inputs:
     required: false
   repo:
     description: The repository name
-    default: ${{ github.repository }}
+    default: ${{ github.event.repository.name }}
     required: true
   workflow:
     description: The workflow name
