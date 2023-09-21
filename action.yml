@@ -10,6 +10,17 @@ inputs:
     description: The GitHub token used to create an authenticated client
     default: ${{ github.token }}
     required: false
+  owner:
+    description: The owner of the repository
+    default: ${{ github.repository_owner }}
+    required: false
+  repo:
+    description: The repository name
+    default: ${{ github.repository }}
+    required: true
+  workflow:
+    description: The workflow name
+    required: false
 
 runs:
   using: "node16"
