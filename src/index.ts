@@ -1,4 +1,4 @@
-import { getInput, info } from "@actions/core";
+import { getInput } from "@actions/core";
 import { getOctokit } from "@actions/github";
 import { components } from "@octokit/openapi-types";
 
