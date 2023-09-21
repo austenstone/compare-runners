@@ -1,4 +1,4 @@
-import { getInput } from "@actions/core";
+import { getInput, startGroup, endGroup } from "@actions/core";
 import { getOctokit } from "@actions/github";
 import { components } from "@octokit/openapi-types";
 
@@ -44,7 +44,20 @@ const run = async (): Promise<void> => {
     workflowRuns = repoWorkflowRunsRsp.data.workflow_runs;
   }
   
+  startGroup("Workflow runs");
   console.log(workflowRuns);
+  endGroup();
+
+  for (const workflowRun of workflowRuns) {
+    const jobsRsp = await octokit.rest.actions.listJobsForWorkflowRun({
+      ...ownerRepo,
+      run_id: workflowRun.id,
+    });
+    const jobs = jobsRsp.data.jobs;
+    startGroup(`Workflow run ${workflowRun.id}`);
+    console.log(jobs);
+    endGroup();
+  }
 };
 
 run();

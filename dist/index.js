@@ -12777,7 +12777,16 @@ const run = () => __awaiter(void 0, void 0, void 0, function* () {
         const repoWorkflowRunsRsp = yield octokit.rest.actions.listWorkflowRunsForRepo(ownerRepo);
         workflowRuns = repoWorkflowRunsRsp.data.workflow_runs;
     }
+    (0, core_1.startGroup)("Workflow runs");
     console.log(workflowRuns);
+    (0, core_1.endGroup)();
+    for (const workflowRun of workflowRuns) {
+        const jobsRsp = yield octokit.rest.actions.listJobsForWorkflowRun(Object.assign(Object.assign({}, ownerRepo), { run_id: workflowRun.id }));
+        const jobs = jobsRsp.data.jobs;
+        (0, core_1.startGroup)(`Workflow run ${workflowRun.id}`);
+        console.log(jobs);
+        (0, core_1.endGroup)();
+    }
 });
 run();
 
