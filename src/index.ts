@@ -20,7 +20,25 @@ export function getInputs(): Input {
 
 const run = async (): Promise<void> => {
   const input = getInputs();
-  const octokit = getOctokit(input.token);
+  const octokit = getOctokit(input.token, {
+    throttle: {
+      onRateLimit: (retryAfter, options, octokit, retryCount) => {
+        octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url}`,);
+  
+        if (retryCount < 1) {
+          octokit.log.info(`Retrying after ${retryAfter} seconds!`);
+          return true;
+        }
+        return false;
+      },
+      onSecondaryRateLimit: (_, options, octokit) => {
+        octokit.log.warn(
+          `SecondaryRateLimit detected for request ${options.method} ${options.url}`,
+        );
+      },
+    },
+  });
+  
   const ownerRepo = {
     owner: input.owner,
     repo: input.repo,

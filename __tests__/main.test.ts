@@ -7,7 +7,9 @@ const addInput = (key, value) => process.env[`INPUT_${key.replace(/ /g, '-').toU
 
 const input: any = {
   'github-token': process.env.GITHUB_TOKEN,
-  organization: process.env.ORGANIZATION || 'octoaustenstone'
+  organization: process.env.ORGANIZATION || 'octoaustenstone',
+  'repo': process.env.REPO || 'compare-runners',
+  'owner': process.env.OWNER || 'austenstone',
 }
 
 test('test run', () => {
