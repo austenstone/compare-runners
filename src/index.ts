@@ -1,6 +1,13 @@
-import { getInput, startGroup, endGroup } from "@actions/core";
+import { getInput, startGroup, endGroup, summary } from "@actions/core";
+import { SummaryTableRow } from "@actions/core/lib/summary";
 import { getOctokit } from "@actions/github";
 import { components } from "@octokit/openapi-types";
+import { writeFileSync } from "fs";
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+dayjs.extend(duration)
+// import relativeTime from 'dayjs/plugin/relativeTime';
+// dayjs.extend(relativeTime)
 
 interface Input {
   token: string;
@@ -24,7 +31,7 @@ const run = async (): Promise<void> => {
     throttle: {
       onRateLimit: (retryAfter, options, octokit, retryCount) => {
         octokit.log.warn(`Request quota exhausted for request ${options.method} ${options.url}`,);
-  
+
         if (retryCount < 1) {
           octokit.log.info(`Retrying after ${retryAfter} seconds!`);
           return true;
@@ -38,44 +45,70 @@ const run = async (): Promise<void> => {
       },
     },
   });
-  
-  const ownerRepo = {
-    owner: input.owner,
-    repo: input.repo,
-  };
 
-  const repoWorkflowsRsp = await octokit.rest.actions.listRepoWorkflows(ownerRepo);
-  const workflows = repoWorkflowsRsp.data.workflows;
+  const workflows: components["schemas"]['workflow'][] = await octokit.paginate({
+    method: "GET",
+    url: `/repos/${input.owner}/${input.repo}/actions/workflows`,
+  });
 
   let workflowRuns: components["schemas"]["workflow-run"][] = [];
   if (input.workflow) {
     const workflow = workflows.find((w) => w.name === input.workflow);
     if (!workflow) throw new Error(`Workflow ${input.workflow} not found`);
 
-    const workflowRunsRsp = await octokit.rest.actions.listWorkflowRuns({
-      ...ownerRepo,
-      workflow_id: workflow.id,
+    workflowRuns = await octokit.paginate({
+      method: "GET",
+      url: `/repos/${input.owner}/${input.repo}/actions/workflows/${workflow.id}/runs`,
     });
-    workflowRuns = workflowRunsRsp.data.workflow_runs;
   } else {
-    const repoWorkflowRunsRsp = await octokit.rest.actions.listWorkflowRunsForRepo(ownerRepo);
-    workflowRuns = repoWorkflowRunsRsp.data.workflow_runs;
+    workflowRuns = await octokit.paginate({
+      method: "GET",
+      url: `/repos/${input.owner}/${input.repo}/actions/runs`
+    })
   }
-  
+
   startGroup("Workflow runs");
   console.log(workflowRuns);
+  writeFileSync("workflow-runs.json", JSON.stringify(workflowRuns, null, 2));
   endGroup();
 
+  // TEMP truncate the workflowRuns array to only have 3 elements
+  workflowRuns = workflowRuns.slice(0, 3);
+  // END
+
+
+  let jobs: components["schemas"]['job'][] = [];
   for (const workflowRun of workflowRuns) {
-    const jobsRsp = await octokit.rest.actions.listJobsForWorkflowRun({
-      ...ownerRepo,
-      run_id: workflowRun.id,
+    jobs = await octokit.paginate({
+      method: "GET",
+      url: workflowRun.jobs_url,
     });
-    const jobs = jobsRsp.data.jobs;
     startGroup(`Workflow run ${workflowRun.id}`);
     console.log(jobs);
+    writeFileSync(`workflow-run-${workflowRun.id}.json`, JSON.stringify(jobs, null, 2));
     endGroup();
   }
+
+  const tableData: SummaryTableRow[] = workflowRuns?.map((workflowRun) => {
+    return [
+      workflowRun.name || workflowRun.id.toString(),
+      dayjs.duration((new Date(workflowRun.updated_at)).getTime() - (new Date(workflowRun.created_at)).getTime()).asMinutes().toString(),
+    ];
+  });
+
+  const table = [
+    [{ data: 'Workflow', header: true }, { data: 'Duration', header: true }],
+    ...tableData
+  ];
+
+  console.log(table);
+
+  return;
+
+  await summary
+    .addHeading('Workflow')
+    .addTable(table)
+    .write()
 };
 
 run();
